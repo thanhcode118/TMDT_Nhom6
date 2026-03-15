@@ -1,0 +1,10 @@
+<div class="min-h-screen flex flex-col relative">
+  <app-header></app-header>
+  
+  <main class="flex-grow" [class.pt-24]="!isHomePage()">
+    <router-outlet></router-outlet>
+  </main>
+
+  <app-footer></app-footer>
+  <app-floating-actions></app-floating-actions>
+</div>
