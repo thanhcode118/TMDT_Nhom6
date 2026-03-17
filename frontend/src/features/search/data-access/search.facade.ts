@@ -2,8 +2,14 @@ import { DestroyRef, Injectable, computed, effect, inject, signal } from '@angul
 import { Params } from '@angular/router';
 import { CatalogStore } from '@/features/catalog/data-access/catalog.store';
 import { Product } from '@/core/models';
+import {
+  normalizeSearchText,
+  parseSearchQueryState,
+  serializeSearchQueryState,
+  type SearchSort
+} from './search-query-state';
 
-export type SearchSort = 'relevance' | 'newest' | 'price-asc' | 'price-desc' | 'rating-desc';
+export type { SearchSort } from './search-query-state';
 
 @Injectable({ providedIn: 'root' })
 export class SearchFacade {
@@ -35,44 +41,32 @@ export class SearchFacade {
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
-    effect(
-      () => {
-        this.query();
-        this.selectedCategories();
-        this.selectedBrands();
-        this.selectedStyles();
-        this.minPrice();
-        this.maxPrice();
-        this.inStockOnly();
-        this.onSaleOnly();
-        this.ratingGte();
-        this.sortBy();
+    effect(() => {
+      this.query();
+      this.selectedCategories();
+      this.selectedBrands();
+      this.selectedStyles();
+      this.minPrice();
+      this.maxPrice();
+      this.inStockOnly();
+      this.onSaleOnly();
+      this.ratingGte();
+      this.sortBy();
 
-        this.isSearching.set(true);
-        if (this.searchTimer) {
-          clearTimeout(this.searchTimer);
-        }
-        this.searchTimer = setTimeout(() => {
-          this.isSearching.set(false);
-        }, 180);
-      },
-      { allowSignalWrites: true }
-    );
+      this.isSearching.set(true);
+      if (this.searchTimer) {
+        clearTimeout(this.searchTimer);
+      }
+      this.searchTimer = setTimeout(() => {
+        this.isSearching.set(false);
+      }, 180);
+    });
 
     this.destroyRef.onDestroy(() => {
       if (this.searchTimer) {
         clearTimeout(this.searchTimer);
       }
     });
-  }
-
-  private normalize(value: string): string {
-    return value
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .replace(/\s+/g, ' ')
-      .trim();
   }
 
   private toBrand(product: Product): string {
@@ -95,12 +89,12 @@ export class SearchFacade {
       return 0;
     }
 
-    const name = this.normalize(product.name);
-    const sku = this.normalize(product.sku);
-    const category = this.normalize(product.category);
-    const brand = this.normalize(this.toBrand(product));
-    const style = this.normalize(product.style ?? '');
-    const material = this.normalize(product.material ?? '');
+    const name = normalizeSearchText(product.name);
+    const sku = normalizeSearchText(product.sku);
+    const category = normalizeSearchText(product.category);
+    const brand = normalizeSearchText(this.toBrand(product));
+    const style = normalizeSearchText(product.style ?? '');
+    const material = normalizeSearchText(product.material ?? '');
 
     let score = 0;
     if (name === normalizedQuery) score += 120;
@@ -120,48 +114,7 @@ export class SearchFacade {
     return score;
   }
 
-  private parseList(value?: string): string[] {
-    if (!value) {
-      return [];
-    }
-    return value
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-
-  private toNumber(value?: string): number | null {
-    if (!value) {
-      return null;
-    }
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed)) {
-      return null;
-    }
-    return parsed;
-  }
-
-  private toBoolean(value?: string): boolean {
-    return value === 'true' || value === '1';
-  }
-
-  readonly allProducts = computed(() => {
-    const all = [
-      ...this.catalogStore.categoryProducts(),
-      ...this.catalogStore.newCollectionProducts(),
-      ...this.catalogStore.trendingProducts(),
-      ...this.catalogStore.flashSaleProducts(),
-      ...this.catalogStore.newArrivals()
-    ];
-
-    const uniqueById = new Map<number, Product>();
-    all.forEach((product) => {
-      if (product.isActive) {
-        uniqueById.set(product.id, product);
-      }
-    });
-    return Array.from(uniqueById.values()).sort((a, b) => a.id - b.id);
-  });
+  readonly allProducts = this.catalogStore.allProducts;
 
   readonly availableCategories = computed(() => {
     return Array.from(new Set(this.allProducts().map((item) => item.category))).sort((a, b) => a.localeCompare(b));
@@ -195,9 +148,9 @@ export class SearchFacade {
   });
 
   readonly filteredProducts = computed(() => {
-    const q = this.normalize(this.query().trim());
+    const q = normalizeSearchText(this.query());
     return this.allProducts().filter((product) => {
-      const text = this.normalize(
+      const text = normalizeSearchText(
         `${product.name} ${product.sku} ${product.category} ${this.toBrand(product)} ${product.style ?? ''} ${product.material ?? ''} ${product.color ?? ''}`
       );
 
@@ -246,7 +199,7 @@ export class SearchFacade {
 
   readonly results = computed(() => {
     const list = [...this.filteredProducts()];
-    const q = this.normalize(this.query().trim());
+    const q = normalizeSearchText(this.query());
 
     switch (this.sortBy()) {
       case 'price-asc':
@@ -271,7 +224,7 @@ export class SearchFacade {
   });
 
   readonly suggestions = computed(() => {
-    const q = this.normalize(this.query().trim());
+    const q = normalizeSearchText(this.query());
     if (!q) {
       return [];
     }
@@ -290,7 +243,7 @@ export class SearchFacade {
 
     const uniqueKeywordMap = new Map<string, string>();
     rawKeywords.forEach((keyword) => {
-      const normalized = this.normalize(keyword);
+      const normalized = normalizeSearchText(keyword);
       if (normalized && !uniqueKeywordMap.has(normalized)) {
         uniqueKeywordMap.set(normalized, keyword.trim());
       }
@@ -303,7 +256,7 @@ export class SearchFacade {
   });
 
   readonly keywordSuggestions = computed(() => {
-    const q = this.normalize(this.query().trim());
+    const q = normalizeSearchText(this.query());
     const allKeywords = this.keywordPool();
 
     if (!q) {
@@ -420,42 +373,32 @@ export class SearchFacade {
   }
 
   toQueryParams(): Params {
-    const queryParams: Params = {};
-    const query = this.query().trim();
-
-    if (query) queryParams.q = query;
-    if (this.selectedCategories().length) queryParams.category = this.selectedCategories().join(',');
-    if (this.selectedBrands().length) queryParams.brand = this.selectedBrands().join(',');
-    if (this.selectedStyles().length) queryParams.style = this.selectedStyles().join(',');
-    if (this.minPrice() !== null) queryParams.minPrice = this.minPrice();
-    if (this.maxPrice() !== null) queryParams.maxPrice = this.maxPrice();
-    if (this.inStockOnly()) queryParams.inStock = 'true';
-    if (this.onSaleOnly()) queryParams.onSale = 'true';
-    if (this.ratingGte() > 0) queryParams.ratingGte = this.ratingGte();
-    if (this.sortBy() !== 'relevance') queryParams.sort = this.sortBy();
-
-    return queryParams;
+    return serializeSearchQueryState({
+      query: this.query(),
+      selectedCategories: this.selectedCategories(),
+      selectedBrands: this.selectedBrands(),
+      selectedStyles: this.selectedStyles(),
+      minPrice: this.minPrice(),
+      maxPrice: this.maxPrice(),
+      inStockOnly: this.inStockOnly(),
+      onSaleOnly: this.onSaleOnly(),
+      ratingGte: this.ratingGte(),
+      sortBy: this.sortBy()
+    });
   }
 
   hydrateFromQueryParams(params: Record<string, string | undefined>): void {
-    this.query.set((params.q ?? '').trim());
-    this.selectedCategories.set(this.parseList(params.category));
-    this.selectedBrands.set(this.parseList(params.brand));
-    this.selectedStyles.set(this.parseList(params.style));
+    const state = parseSearchQueryState(params);
 
-    const minPrice = this.toNumber(params.minPrice);
-    const maxPrice = this.toNumber(params.maxPrice);
-    this.setPriceRange(minPrice, maxPrice);
-
-    this.inStockOnly.set(this.toBoolean(params.inStock));
-    this.onSaleOnly.set(this.toBoolean(params.onSale));
-
-    const rating = this.toNumber(params.ratingGte);
-    this.ratingGte.set(rating ? Math.max(0, Math.min(5, Math.floor(rating))) : 0);
-
-    const sort = params.sort as SearchSort | undefined;
-    const allowedSort: SearchSort[] = ['relevance', 'newest', 'price-asc', 'price-desc', 'rating-desc'];
-    this.sortBy.set(sort && allowedSort.includes(sort) ? sort : 'relevance');
+    this.query.set(state.query);
+    this.selectedCategories.set(state.selectedCategories);
+    this.selectedBrands.set(state.selectedBrands);
+    this.selectedStyles.set(state.selectedStyles);
+    this.setPriceRange(state.minPrice, state.maxPrice);
+    this.inStockOnly.set(state.inStockOnly);
+    this.onSaleOnly.set(state.onSaleOnly);
+    this.ratingGte.set(state.ratingGte);
+    this.sortBy.set(state.sortBy);
   }
 
   clearQuery(): void {

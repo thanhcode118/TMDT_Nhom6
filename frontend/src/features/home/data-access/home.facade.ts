@@ -19,7 +19,7 @@ export class HomeFacade {
   readonly lookbookItems = this.contentStore.lookbookItems;
   readonly instagramFeed = this.contentStore.instagramFeed;
 
-  addToCart(productId?: number, quantity = 1): void {
+  addToCart(productId: number, quantity = 1): void {
     this.checkoutFacade.addToCart(productId, quantity);
   }
 }
