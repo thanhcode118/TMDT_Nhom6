@@ -45,7 +45,7 @@ import { IconComponent } from '@/shared/components/icon.component';
 
                 <!-- Add to Cart Slide Up -->
                 <div class="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-20">
-                  <button (click)="homeFacade.addToCart()" class="w-full bg-charcoal text-white py-3 font-semibold rounded shadow-lg hover:bg-honey hover:text-charcoal transition-colors flex items-center justify-center gap-2">
+                  <button (click)="homeFacade.addToCart(product.id)" class="w-full bg-charcoal text-white py-3 font-semibold rounded shadow-lg hover:bg-honey hover:text-charcoal transition-colors flex items-center justify-center gap-2">
                     <app-icon name="plus"></app-icon> Thêm vào giỏ
                   </button>
                 </div>

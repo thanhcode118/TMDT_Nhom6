@@ -13,7 +13,7 @@ export class CatalogFacade {
   readonly newCollectionProducts = this.catalogStore.newCollectionProducts;
   readonly lookbookItems = this.contentStore.lookbookItems;
 
-  addToCart(productId?: number, quantity = 1): void {
+  addToCart(productId: number, quantity = 1): void {
     this.checkoutFacade.addToCart(productId, quantity);
   }
 }

@@ -2,7 +2,6 @@ import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@a
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CheckoutFacade } from '@/features/checkout/data-access/checkout.facade';
-import { CatalogStore } from '@/features/catalog/data-access/catalog.store';
 
 @Component({
   selector: 'app-checkout',
@@ -79,7 +78,10 @@ import { CatalogStore } from '@/features/catalog/data-access/catalog.store';
 })
 export class CheckoutComponent {
   private readonly checkoutFacade = inject(CheckoutFacade);
-  private readonly catalogStore = inject(CatalogStore);
+
+  readonly cartItemsDetailed = this.checkoutFacade.cartItemsDetailed;
+  readonly subtotal = this.checkoutFacade.subtotal;
+  readonly shippingFee = this.checkoutFacade.shippingFee;
 
   fullName = '';
   phone = '';
@@ -90,28 +92,6 @@ export class CheckoutComponent {
   couponMessage = signal('');
   orderMessage = signal('');
   discount = signal(0);
-
-  cartItemsDetailed = computed(() => {
-    const products = this.catalogStore.categoryProducts();
-    return this.checkoutFacade.activeCart().items.map((item) => {
-      const product = products.find((p) => p.id === item.productId);
-      const price = product?.price ?? item.unitPrice;
-      return {
-        id: item.id,
-        name: product?.name ?? `Sản phẩm #${item.productId}`,
-        quantity: item.quantity,
-        lineTotal: price * item.quantity
-      };
-    });
-  });
-
-  subtotal = computed(() => {
-    return this.cartItemsDetailed().reduce((sum, item) => sum + item.lineTotal, 0);
-  });
-
-  shippingFee = computed(() => {
-    return this.subtotal() >= 500000 ? 0 : 30000;
-  });
 
   grandTotal = computed(() => {
     return this.subtotal() - this.discount() + this.shippingFee();
