@@ -1,7 +1,19 @@
 import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { ContactFacade } from '@/features/contact/data-access/contact.facade';
+
+interface Branch {
+  id: string;
+  city: string;
+  flag: string;
+  name: string;
+  address: string;
+  phone: string;
+  hours: string;
+  mapSrc: SafeResourceUrl;
+}
 
 @Component({
   selector: 'app-contact',
@@ -12,11 +24,12 @@ import { ContactFacade } from '@/features/contact/data-access/contact.facade';
     <section class="bg-cream min-h-screen py-12">
       <div class="container mx-auto px-4 space-y-8">
         <div>
-          <h1 class="text-3xl font-bold text-charcoal">Liên hệ và Feedback</h1>
+          <h1 class="text-3xl font-bold text-charcoal">Liên hệ &amp; Feedback</h1>
           <p class="text-gray-600 mt-1">Gửi thông tin để BeeShop hỗ trợ nhanh nhất.</p>
         </div>
 
         <div class="grid lg:grid-cols-2 gap-8">
+          <!-- Feedback Form -->
           <div class="bg-white rounded-xl shadow p-6">
             <h2 class="text-xl font-bold mb-4">Gửi feedback</h2>
             <form class="space-y-3" (ngSubmit)="submit()">
@@ -27,18 +40,58 @@ import { ContactFacade } from '@/features/contact/data-access/contact.facade';
             </form>
           </div>
 
+          <!-- Google Maps - 4 Chi Nhanh -->
           <div class="bg-white rounded-xl shadow p-6 space-y-4">
-            <h2 class="text-xl font-bold">Google Maps</h2>
-            <iframe
-              title="beeshop-map"
-              class="w-full h-64 rounded-lg border"
-              src="https://maps.google.com/maps?q=Ha%20Noi&t=&z=13&ie=UTF8&iwloc=&output=embed"
-              loading="lazy">
-            </iframe>
-            <p class="text-sm text-gray-600">Địa chỉ: 123 Tổ Ong, Hà Nội</p>
+            <h2 class="text-xl font-bold">Hệ thống chi nhánh</h2>
+
+            <!-- Branch Tabs -->
+            <div class="flex flex-wrap gap-2">
+              @for (branch of branches; track branch.id) {
+                <button
+                  (click)="activeBranch = branch.id"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold border transition-all duration-200"
+                  [class.bg-honey]="activeBranch === branch.id"
+                  [class.text-charcoal]="activeBranch === branch.id"
+                  [class.border-honey]="activeBranch === branch.id"
+                  [class.bg-white]="activeBranch !== branch.id"
+                  [class.text-gray-500]="activeBranch !== branch.id"
+                  [class.border-gray-200]="activeBranch !== branch.id"
+                >
+                  <span>{{ branch.flag }}</span>
+                  <span>{{ branch.city }}</span>
+                </button>
+              }
+            </div>
+
+            <!-- Branch Detail -->
+            @for (branch of branches; track branch.id) {
+              @if (activeBranch === branch.id) {
+                <div class="space-y-3">
+                  <iframe
+                    [title]="'beeshop-' + branch.id"
+                    class="w-full h-56 rounded-xl border border-gray-100 shadow-sm"
+                    [src]="branch.mapSrc"
+                    loading="lazy"
+                    allowfullscreen
+                    referrerpolicy="no-referrer-when-downgrade">
+                  </iframe>
+                  <div class="bg-cream rounded-lg p-3 space-y-1.5">
+                    <p class="font-bold text-charcoal text-sm flex items-center gap-2">
+                      <span class="text-honey text-base">&#128205;</span> {{ branch.name }}
+                    </p>
+                    <p class="text-sm text-gray-600 pl-6">{{ branch.address }}</p>
+                    <div class="flex flex-wrap gap-x-6 gap-y-1 pl-6 text-sm text-gray-500">
+                      <span>&#128222; {{ branch.phone }}</span>
+                      <span>&#128336; {{ branch.hours }}</span>
+                    </div>
+                  </div>
+                </div>
+              }
+            }
           </div>
         </div>
 
+        <!-- Feedback List -->
         <div class="bg-white rounded-xl shadow p-6">
           <h2 class="text-xl font-bold mb-4">Danh sách feedback</h2>
           <div class="space-y-3">
@@ -60,10 +113,63 @@ import { ContactFacade } from '@/features/contact/data-access/contact.facade';
 })
 export class ContactComponent {
   contactFacade = inject(ContactFacade);
+  private sanitizer = inject(DomSanitizer);
 
   name = '';
   email = '';
   message = '';
+  activeBranch = 'hanoi';
+
+  branches: Branch[] = [
+    {
+      id: 'hanoi',
+      city: 'Hà Nội',
+      flag: '🏛️',
+      name: 'BeeShop Hà Nội',
+      address: '54 Hàng Gai, phường Hàng Gai, quận Hoàn Kiếm, Hà Nội',
+      phone: '024 3826 1234',
+      hours: '8:00 – 21:30',
+      mapSrc: this.sanitizer.bypassSecurityTrustResourceUrl(
+        'https://maps.google.com/maps?q=54+Hang+Gai,+Hoan+Kiem,+Ha+Noi,+Vietnam&t=&z=16&ie=UTF8&iwloc=&output=embed'
+      )
+    },
+    {
+      id: 'hcm',
+      city: 'TP.HCM',
+      flag: '🏙️',
+      name: 'BeeShop TP. Hồ Chí Minh',
+      address: '68 Lê Lợi, phường Bến Nghé, quận 1, TP. Hồ Chí Minh',
+      phone: '028 3829 5678',
+      hours: '8:00 – 22:00',
+      mapSrc: this.sanitizer.bypassSecurityTrustResourceUrl(
+        'https://maps.google.com/maps?q=68+Le+Loi,+Ben+Nghe,+District+1,+Ho+Chi+Minh+City,+Vietnam&t=&z=16&ie=UTF8&iwloc=&output=embed'
+      )
+    },
+    {
+      id: 'danang',
+      city: 'Đà Nẵng',
+      flag: '🌊',
+      name: 'BeeShop Đà Nẵng',
+      address: '112 Bạch Đằng, phường Thạch Thang, quận Hải Châu, Đà Nẵng',
+      phone: '0236 3822 999',
+      hours: '8:30 – 21:00',
+      mapSrc: this.sanitizer.bypassSecurityTrustResourceUrl(
+        'https://maps.google.com/maps?q=112+Bach+Dang,+Hai+Chau,+Da+Nang,+Vietnam&t=&z=16&ie=UTF8&iwloc=&output=embed'
+      )
+    },
+    {
+      id: 'haiphong',
+      city: 'Hải Phòng',
+      flag: '⚓',
+      name: 'BeeShop Hải Phòng',
+      address: '35 Điện Biên Phủ, phường Minh Khai, quận Hồng Bàng, Hải Phòng',
+      phone: '0225 3745 888',
+      hours: '8:00 – 21:00',
+      mapSrc: this.sanitizer.bypassSecurityTrustResourceUrl(
+        'https://maps.google.com/maps?q=35+Dien+Bien+Phu,+Hong+Bang,+Hai+Phong,+Vietnam&t=&z=16&ie=UTF8&iwloc=&output=embed'
+      )
+    }
+  ];
 
   submit(): void {
     this.contactFacade.submitFeedback(this.name, this.email, this.message);

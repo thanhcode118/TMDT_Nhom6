@@ -1,5 +1,6 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-footer',
@@ -32,10 +33,10 @@ import { CommonModule } from '@angular/common';
           <div>
             <h3 class="text-white font-bold mb-6">Chính sách</h3>
             <ul class="space-y-3 text-sm">
-              <li><a href="#" class="hover:text-honey transition-colors">Chính sách bảo mật</a></li>
-              <li><a href="#" class="hover:text-honey transition-colors">Chính sách vận chuyển</a></li>
-              <li><a href="#" class="hover:text-honey transition-colors">Chính sách đổi trả</a></li>
-              <li><a href="#" class="hover:text-honey transition-colors">Quy định thanh toán</a></li>
+              <li><a (click)="goToPolicy('privacy', $event)" href="#" class="hover:text-honey transition-colors cursor-pointer">Chính sách bảo mật</a></li>
+              <li><a (click)="goToPolicy('shipping', $event)" href="#" class="hover:text-honey transition-colors cursor-pointer">Chính sách vận chuyển</a></li>
+              <li><a (click)="goToPolicy('return', $event)" href="#" class="hover:text-honey transition-colors cursor-pointer">Chính sách đổi trả</a></li>
+              <li><a (click)="goToPolicy('payment', $event)" href="#" class="hover:text-honey transition-colors cursor-pointer">Quy định thanh toán</a></li>
             </ul>
           </div>
 
@@ -70,4 +71,12 @@ import { CommonModule } from '@angular/common';
     </footer>
   `
 })
-export class FooterComponent {}
+export class FooterComponent {
+  private router = inject(Router);
+
+  goToPolicy(tab: string, event: Event) {
+    event.preventDefault();
+    this.router.navigate(['/policies'], { fragment: tab });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}
