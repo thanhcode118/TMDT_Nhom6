@@ -1,7 +1,13 @@
 using HomeDecorShop.Application;
 using HomeDecorShop.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc; // <-- Thêm dòng này để dùng [FromServices]
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ---> ĐĂNG KÝ DBCONTEXT KẾT NỐI SQL SERVER <---
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure();
@@ -15,13 +21,27 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Thêm cấu hình Swagger (Giao diện test API)
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
 var app = builder.Build();
 
 app.UseHttpsRedirection();
 app.UseCors("Frontend");
 
+// Kích hoạt Swagger
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+// ==========================================
+// API PRODUCTS
+// ==========================================
 app.MapGet("/api/products", (
-    IProductService productService,
+    [FromServices] IProductService productService, // <-- Thêm [FromServices]
     string? q,
     string? category,
     string? brand,
@@ -53,42 +73,46 @@ app.MapGet("/api/products", (
 })
 .WithName("GetProducts");
 
-app.MapGet("/api/products/{id:int}", (IProductService productService, int id) =>
+app.MapGet("/api/products/{id:int}", ([FromServices] IProductService productService, int id) =>
 {
     var product = productService.GetById(id);
     return product is null ? Results.NotFound() : Results.Ok(product);
 })
 .WithName("GetProductById");
 
-app.MapPost("/api/products", (IProductService productService, ProductUpsertInput input) =>
+app.MapPost("/api/products", ([FromServices] IProductService productService, [FromBody] ProductUpsertInput input) =>
 {
     var created = productService.Create(input);
     return Results.Created($"/api/products/{created.Id}", created);
 })
 .WithName("CreateProduct");
 
-app.MapPut("/api/products/{id:int}", (IProductService productService, int id, ProductUpsertInput input) =>
+app.MapPut("/api/products/{id:int}", ([FromServices] IProductService productService, int id, [FromBody] ProductUpsertInput input) =>
 {
     var updated = productService.Update(id, input);
     return updated is null ? Results.NotFound() : Results.Ok(updated);
 })
 .WithName("UpdateProduct");
 
-app.MapDelete("/api/products/{id:int}", (IProductService productService, int id) =>
+app.MapDelete("/api/products/{id:int}", ([FromServices] IProductService productService, int id) =>
 {
     var deleted = productService.Delete(id);
     return deleted ? Results.NoContent() : Results.NotFound();
 })
 .WithName("DeleteProduct");
 
-app.MapGet("/api/users", (IUserService userService) =>
+
+// ==========================================
+// API USERS & AUTHENTICATION
+// ==========================================
+app.MapGet("/api/users", ([FromServices] IUserService userService) =>
 {
     var users = userService.GetAll();
     return Results.Ok(users);
 })
 .WithName("GetUsers");
 
-app.MapPost("/api/users/register", (IUserService userService, RegisterUserInput input) =>
+app.MapPost("/api/users/register", ([FromServices] IUserService userService, [FromBody] RegisterUserInput input) =>
 {
     try
     {
@@ -102,16 +126,16 @@ app.MapPost("/api/users/register", (IUserService userService, RegisterUserInput 
 })
 .WithName("RegisterUser");
 
-app.MapPost("/api/users/login", (IUserService userService, LoginInput input) =>
+app.MapPost("/api/users/login", ([FromServices] IUserService userService, [FromBody] LoginInput input) =>
 {
     var auth = userService.Login(input);
     return auth is null
-        ? Results.Unauthorized()
+        ? Results.Unauthorized() 
         : Results.Ok(auth);
 })
 .WithName("LoginUser");
 
-app.MapGet("/api/users/me", (IUserService userService, HttpContext httpContext) =>
+app.MapGet("/api/users/me", ([FromServices] IUserService userService, HttpContext httpContext) =>
 {
     var token = GetToken(httpContext);
     var user = userService.GetByToken(token);
@@ -119,7 +143,7 @@ app.MapGet("/api/users/me", (IUserService userService, HttpContext httpContext) 
 })
 .WithName("GetCurrentUser");
 
-app.MapPut("/api/users/me", (IUserService userService, HttpContext httpContext, UpdateProfileInput input) =>
+app.MapPut("/api/users/me", ([FromServices] IUserService userService, HttpContext httpContext, [FromBody] UpdateProfileInput input) =>
 {
     var token = GetToken(httpContext);
     var user = userService.UpdateProfile(token, input);
@@ -127,7 +151,7 @@ app.MapPut("/api/users/me", (IUserService userService, HttpContext httpContext, 
 })
 .WithName("UpdateCurrentUser");
 
-app.MapPost("/api/users/me/addresses", (IUserService userService, HttpContext httpContext, UpsertAddressInput input) =>
+app.MapPost("/api/users/me/addresses", ([FromServices] IUserService userService, HttpContext httpContext, [FromBody] UpsertAddressInput input) =>
 {
     var token = GetToken(httpContext);
     var user = userService.AddAddress(token, input);
@@ -137,6 +161,10 @@ app.MapPost("/api/users/me/addresses", (IUserService userService, HttpContext ht
 
 app.Run();
 
+
+// ==========================================
+// HELPER METHODS
+// ==========================================
 static string GetToken(HttpContext context)
 {
     if (context.Request.Headers.TryGetValue("X-Auth-Token", out var token))
