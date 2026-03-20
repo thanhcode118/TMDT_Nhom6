@@ -77,7 +77,7 @@ import { IconComponent } from '@/shared/components/icon.component';
                       <div>
                         <h4 class="font-bold text-charcoal group-hover:text-honey transition-colors">{{ spot.product.name }}</h4>
                         <p class="text-honey font-semibold">{{ spot.product.price | currency:'VND':'symbol':'1.0-0' }}</p>
-                        <button (click)="catalogFacade.addToCart()" class="text-xs underline mt-1 text-gray-500 hover:text-charcoal">Thêm vào giỏ</button>
+                        <button (click)="catalogFacade.addToCart(spot.product.id)" class="text-xs underline mt-1 text-gray-500 hover:text-charcoal">Thêm vào giỏ</button>
                       </div>
                     </div>
                   }
@@ -174,7 +174,7 @@ import { IconComponent } from '@/shared/components/icon.component';
 
                   <!-- Quick Add Slide Up -->
                   <div class="absolute bottom-0 left-0 w-full p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-20">
-                     <button (click)="catalogFacade.addToCart()" class="w-full bg-white text-charcoal font-bold py-3 hover:bg-honey hover:text-white transition-colors shadow-lg">
+                     <button (click)="catalogFacade.addToCart(product.id)" class="w-full bg-white text-charcoal font-bold py-3 hover:bg-honey hover:text-white transition-colors shadow-lg">
                        Thêm vào giỏ
                      </button>
                   </div>

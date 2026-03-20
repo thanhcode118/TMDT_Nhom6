@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, computed, signal } from '@angular/core';
 import { Category, Product } from '@/core/models';
 import {
   MOCK_CATEGORIES,
@@ -17,4 +17,26 @@ export class CatalogStore {
   readonly flashSaleProducts = signal<Product[]>(MOCK_FLASH_SALE_PRODUCTS);
   readonly newCollectionProducts = signal<Product[]>(MOCK_NEW_COLLECTION_PRODUCTS);
   readonly newArrivals = signal<Product[]>(MOCK_NEW_ARRIVALS_PRODUCTS);
+
+  readonly allProducts = computed(() => {
+    const uniqueById = new Map<number, Product>();
+
+    [
+      ...this.categoryProducts(),
+      ...this.newCollectionProducts(),
+      ...this.trendingProducts(),
+      ...this.flashSaleProducts(),
+      ...this.newArrivals()
+    ].forEach((product) => {
+      if (product.isActive) {
+        uniqueById.set(product.id, product);
+      }
+    });
+
+    return Array.from(uniqueById.values()).sort((a, b) => a.id - b.id);
+  });
+
+  findProductById(productId: number): Product | undefined {
+    return this.allProducts().find((product) => product.id === productId);
+  }
 }

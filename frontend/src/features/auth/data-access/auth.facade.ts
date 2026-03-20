@@ -1,20 +1,21 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, signal, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable, catchError, map, of, tap } from 'rxjs';
 
-interface AuthUser {
+export interface AuthUser {
   id: number;
   email: string;
   fullName: string;
   role: 'admin' | 'customer';
-  password: string;
+  token: string;
 }
-
-const MOCK_USERS: AuthUser[] = [
-  { id: 1, email: 'admin@beeshop.vn', fullName: 'Admin BeeShop', role: 'admin', password: '123456' },
-  { id: 2, email: 'user@beeshop.vn', fullName: 'Ngọc Nguyễn', role: 'customer', password: '123456' }
-];
 
 @Injectable({ providedIn: 'root' })
 export class AuthFacade {
+  private http = inject(HttpClient);
+  
+private readonly apiUrl = 'https://localhost:5020/api/users'; 
+
   private readonly currentUserSignal = signal<AuthUser | null>(null);
   private readonly errorSignal = signal('');
 
@@ -23,22 +24,38 @@ export class AuthFacade {
   readonly isAdmin = computed(() => this.currentUserSignal()?.role === 'admin');
   readonly errorMessage = computed(() => this.errorSignal());
 
-  login(email: string, password: string): boolean {
-    const user = MOCK_USERS.find(
-      (item) => item.email.toLowerCase() === email.toLowerCase() && item.password === password
-    );
-
-    if (!user) {
-      this.errorSignal.set('Sai email hoặc mật khẩu. Thử tài khoản mock: admin@beeshop.vn / 123456');
-      return false;
-    }
-
-    this.currentUserSignal.set(user);
+  login(email: string, password: string): Observable<boolean> {
     this.errorSignal.set('');
-    return true;
+    return this.http.post<AuthUser>(`${this.apiUrl}/login`, { email, password }).pipe(
+      tap(user => {
+        this.currentUserSignal.set(user);
+        localStorage.setItem('token', user.token);
+      }),
+      map(() => true),
+      catchError(err => {
+        this.errorSignal.set(err.error?.message || 'Sai email hoặc mật khẩu.');
+        return of(false);
+      })
+    );
+  }
+
+  register(data: any): Observable<boolean> {
+    this.errorSignal.set('');
+    return this.http.post<AuthUser>(`${this.apiUrl}/register`, data).pipe(
+      tap(user => {
+        this.currentUserSignal.set(user);
+        localStorage.setItem('token', user.token);
+      }),
+      map(() => true),
+      catchError(err => {
+        this.errorSignal.set(err.error?.message || 'Đăng ký thất bại. Email có thể đã tồn tại.');
+        return of(false);
+      })
+    );
   }
 
   logout(): void {
     this.currentUserSignal.set(null);
+    localStorage.removeItem('token');
   }
 }

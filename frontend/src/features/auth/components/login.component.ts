@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -13,8 +13,7 @@ import { AuthFacade } from '@/features/auth/data-access/auth.facade';
     <section class="min-h-[70vh] bg-cream py-16">
       <div class="container mx-auto px-4 max-w-xl">
         <div class="bg-white rounded-2xl shadow p-8 border border-gray-100">
-          <h1 class="text-3xl font-bold text-charcoal mb-2">Đăng nhập</h1>
-          <p class="text-sm text-gray-500 mb-6">Mock account: admin@beeshop.vn / 123456</p>
+          <h1 class="text-3xl font-bold text-charcoal mb-6">Đăng nhập</h1>
 
           @if (!authFacade.isAuthenticated()) {
             <form class="space-y-4" (ngSubmit)="submitLogin()">
@@ -33,9 +32,13 @@ import { AuthFacade } from '@/features/auth/data-access/auth.facade';
                 </div>
               }
 
-              <button class="w-full bg-charcoal text-white py-3 rounded-lg font-bold hover:bg-honey hover:text-charcoal transition-colors" type="submit">
-                Đăng nhập
+              <button class="w-full bg-charcoal text-white py-3 rounded-lg font-bold hover:bg-honey hover:text-charcoal transition-colors" type="submit" [disabled]="isLoading">
+                {{ isLoading ? 'Đang đăng nhập...' : 'Đăng nhập' }}
               </button>
+              
+              <p class="text-center text-sm text-gray-600 mt-4">
+                Chưa có tài khoản? <a routerLink="/register" class="text-charcoal font-bold hover:underline">Đăng ký ngay</a>
+              </p>
             </form>
           } @else {
             <div class="space-y-4">
@@ -61,12 +64,23 @@ export class LoginComponent {
 
   email = '';
   password = '';
+  isLoading = false;
 
   submitLogin(): void {
-    const success = this.authFacade.login(this.email, this.password);
-    if (success) {
-      this.router.navigate(['/']);
-    }
+    if (!this.email || !this.password) return;
+    
+    this.isLoading = true;
+    this.authFacade.login(this.email, this.password).subscribe({
+      next: (success) => {
+        this.isLoading = false;
+        if (success) {
+          this.router.navigate(['/']);
+        }
+      },
+      error: () => {
+        this.isLoading = false;
+      }
+    });
   }
 
   logout(): void {

@@ -1,26 +1,30 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Cart, Order, User } from '@/core/models';
-import { MOCK_CARTS, MOCK_ORDERS, MOCK_USERS, MOCK_CATEGORY_PRODUCTS, MOCK_TRENDING_PRODUCTS, MOCK_FLASH_SALE_PRODUCTS, MOCK_NEW_ARRIVALS_PRODUCTS, MOCK_NEW_COLLECTION_PRODUCTS } from '@/core/mock-data/ecommerce.mock';
+import { MOCK_CARTS, MOCK_ORDERS, MOCK_USERS } from '@/core/mock-data/ecommerce.mock';
+import { CatalogStore } from '@/features/catalog/data-access/catalog.store';
 
 @Injectable({ providedIn: 'root' })
 export class CommerceStore {
+  private readonly catalogStore = inject(CatalogStore);
+
   readonly users = signal<User[]>(MOCK_USERS);
   readonly orders = signal<Order[]>(MOCK_ORDERS);
   readonly activeCart = signal<Cart>(MOCK_CARTS[0]);
-
-  private readonly allProducts = [
-    ...MOCK_CATEGORY_PRODUCTS,
-    ...MOCK_TRENDING_PRODUCTS,
-    ...MOCK_FLASH_SALE_PRODUCTS,
-    ...MOCK_NEW_ARRIVALS_PRODUCTS,
-    ...MOCK_NEW_COLLECTION_PRODUCTS
-  ];
 
   readonly cartCount = computed(() => {
     return this.activeCart().items.reduce((total, item) => total + item.quantity, 0);
   });
 
-  addToCart(productId = 101, quantity = 1): void {
+  addToCart(productId: number, quantity = 1): void {
+    if (quantity <= 0) {
+      return;
+    }
+
+    const product = this.catalogStore.findProductById(productId);
+    if (!product) {
+      return;
+    }
+
     this.activeCart.update((cart) => {
       const existingItem = cart.items.find((item) => item.productId === productId);
       if (existingItem) {
@@ -35,9 +39,6 @@ export class CommerceStore {
         };
       }
 
-      const product = this.allProducts.find(p => p.id === productId);
-      const unitPrice = product?.price ?? 0;
-
       return {
         ...cart,
         items: [
@@ -46,7 +47,7 @@ export class CommerceStore {
             id: Date.now(),
             productId,
             quantity,
-            unitPrice
+            unitPrice: product.price
           }
         ],
         updatedAt: new Date().toISOString()
